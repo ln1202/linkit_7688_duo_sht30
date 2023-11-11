@@ -1,0 +1,290 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard</title>
+  <!-- Include necessary libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  <script src="dist/gauge.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div id="app">
+    <div align="center"  style="display: flex; flex-wrap: wrap; justify-content: center;">
+      <div style="display: flex; flex-direction: column; align-items: center;">
+        <h2>SonyEricsson展示櫃 1</h2>
+        <span id="device-1-gauge-textfield"></span>
+        <canvas id="device-1-gauge"></canvas>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center;">
+        <h2>NOKIA展示櫃 1</h2>
+        <span id="device-2-gauge-textfield"></span>
+        <canvas id="device-2-gauge"></canvas>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center;">
+        <h2>Ericsson展示櫃</h2>
+        <span id="device-3-gauge-textfield"></span>
+        <canvas id="device-3-gauge"></canvas>
+      </div>
+    </div>
+    <div align="center" class="chart-container">
+      <canvas id="trend-chart"></canvas>
+      <canvas id="trend-chart2"></canvas>
+      <canvas id="trend-chart3"></canvas>
+    </div>
+  </div>
+
+<style>
+.chart-container {
+  justify-content: center;
+  padding: 20px;
+  width: 70%;
+  padding-left: 120px;
+}
+</style>
+
+  <script>
+    new Vue({
+      el: '#app',
+      data: {
+        device1: {},
+        device2: {},
+        device3: {},
+        historyData: [],
+        historyData2: [],
+        historyData3: []
+      },
+      mounted() {
+        // Set up interval to update data every 5 seconds
+        setInterval(this.fetchData, 15000);
+      },
+      methods: {
+        fetchData() {
+          // Fetch real-time data for Device-1
+          fetch('http://IP/temp/data/?device=linkit1&numpoint=1')
+            .then(response => response.json())
+            .then(data => {
+              this.device1 = data[0];
+              this.updateGauge('device-1-gauge', this.device1.humidity);
+            });
+
+          // Fetch real-time data for Device-2
+          fetch('http://FASTAPI_IP/temp/data/?device=linkit2&numpoint=1')
+            .then(response => response.json())
+            .then(data => {
+              this.device2 = data[0];
+              this.updateGauge('device-2-gauge', this.device2.humidity);
+            });
+          fetch('http://FASTAPI_IP/temp/data/?device=linkit3&numpoint=1')
+            .then(response => response.json())
+            .then(data => {
+              this.device3 = data[0];
+              this.updateGauge('device-3-gauge', this.device3.humidity);
+            });
+          // Fetch historical data for both devices
+          fetch('http://FASTAPI_IP/temp/data/?device=linkit1&numpoint=1000')
+            .then(response => response.json())
+            .then(data => {
+              this.historyData = data;
+              this.updateTrendChart();
+            });
+
+          fetch('http://FASTAPI_IP/temp/data/?device=linkit2&numpoint=1000')
+            .then(response => response.json())
+            .then(data => {
+              this.historyData2 = data;
+              this.updateTrendChart2();
+            });
+          fetch('http://FASTAPI_IP/temp/data/?device=linkit3&numpoint=1000')
+            .then(response => response.json())
+            .then(data => {
+              this.historyData3 = data;
+              this.updateTrendChart3();
+            });
+        },
+        updateGauge(elementId, humidity) {
+          this.$nextTick(() => {
+            const opts = {
+              angle: 0,
+              lineWidth: 0.4,
+              radiusScale: 1,
+              pointer: {
+                length: 0.4,
+                strokeWidth: 0.035,
+                color: '#000000'
+              },
+              limitMax: true,
+              limitMin: true,
+              colorStart: '#6FADCF',
+              colorStop: '#8FC0DA',
+              strokeColor: '#E0E0E0',
+              generateGradient: true,
+              highDpiSupport: true,
+              staticLabels: {
+                font: "10px sans-serif",
+                labels: [30, 50, 70],
+                fractionDigits: 0
+              },
+              staticZones: [
+                { strokeStyle: "#30B32D", min: 30, max: 50 },
+                { strokeStyle: "#FFDD00", min: 50, max: 70 },
+                { strokeStyle: "#F03E3E", min: 70, max: 100 }
+              ]
+            };
+
+            // Create Gauge object
+            const target = document.getElementById('device-1-gauge'); 
+            const gauge = new Gauge(target).setOptions(opts);
+            const gaugeTextField = document.getElementById("device-1-gauge-textfield");
+            gaugeTextField.className = "device-1-gauge-textfield";
+            gauge.setTextField(gaugeTextField);
+            gauge.maxValue = 100;
+            gauge.minValue = 30;
+            gauge.animationSpeed = 2;
+            gauge.set(this.device1.humidity);
+
+            const target2 = document.getElementById('device-2-gauge'); 
+            const gauge2 = new Gauge(target2).setOptions(opts);
+            document.getElementById("device-2-gauge-textfield").className = "device-2-gauge-textfield";
+            gauge2.setTextField(document.getElementById("device-2-gauge-textfield"));
+            gauge2.maxValue = 100;
+            gauge2.minValue = 30;
+            gauge2.animationSpeed = 2;
+            gauge2.set(this.device2.humidity);
+
+            const target3 = document.getElementById('device-3-gauge'); 
+            const gauge3 = new Gauge(target3).setOptions(opts);
+            document.getElementById("device-3-gauge-textfield").className = "device-3-gauge-textfield";
+            gauge3.setTextField(document.getElementById("device-3-gauge-textfield"));
+            gauge3.maxValue = 100;
+            gauge3.minValue = 30;
+            gauge3.animationSpeed = 2;
+            gauge3.set(this.device3.humidity);
+          });
+        },
+        updateTrendChart() {
+          const OldtrendChart = Chart.getChart("trend-chart");
+          if (OldtrendChart) {
+            OldtrendChart.destroy();
+          }
+          const ctx = document.getElementById('trend-chart').getContext('2d');
+          const labels = this.historyData.map(item => item.systime);
+          const device1Temp = this.historyData.map(item => item.temperature);
+          const device1Humidity = this.historyData.map(item => item.humidity);
+
+          const trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: 'SonyEricsson展示櫃濕度',
+                  data: device1Humidity,
+                  borderColor: 'rgba(54, 162, 235, 1)',
+                  backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                  fill: false
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              animation: false,
+              scales: {
+                x: {
+                  display: true
+                },
+                y: {
+                  display: true,
+                  max: 75, // 最大值
+                  min: 55    // 最小值
+                }
+              }
+            }
+          });
+        },
+        updateTrendChart2() {
+          const OldtrendChart2 = Chart.getChart("trend-chart2");
+          if (OldtrendChart2) {
+            OldtrendChart2.destroy();
+          }
+          const ctx = document.getElementById('trend-chart2').getContext('2d');
+          const labels = this.historyData2.map(item => item.systime);
+          const device2Temp = this.historyData2.map(item => item.temperature);
+          const device2Humidity = this.historyData2.map(item => item.humidity);
+
+          const trendChart2 = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: 'NOKIA展示櫃濕度',
+                  data: device2Humidity,
+                  borderColor: 'rgba(255, 99, 132, 1)',
+                  backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                  fill: false
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              animation: false,
+              scales: {
+                x: {
+                  display: true
+                },
+                y: {
+                  display: true,
+                  max: 75, // 最大值
+                  min: 45    // 最小值
+                }
+              }
+            }
+          });
+        },
+        updateTrendChart3() {
+          const OldtrendChart3 = Chart.getChart("trend-chart3");
+          if (OldtrendChart3) {
+            OldtrendChart3.destroy();
+          }
+          const ctx = document.getElementById('trend-chart3').getContext('2d');
+          const labels = this.historyData3.map(item => item.systime);
+          const device3Temp = this.historyData3.map(item => item.temperature);
+          const device3Humidity = this.historyData3.map(item => item.humidity);
+
+          const trendChart3 = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: 'Ericsson展示櫃濕度',
+                  data: device3Humidity,
+                  borderColor: 'rgba(99, 255, 132, 1)',
+                  backgroundColor: 'rgba(99, 255, 132, 0.2)',
+                  fill: false
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              animation: false,
+              scales: {
+                x: {
+                  display: true
+                },
+                y: {
+                  display: true,
+                  max: 75, // 最大值
+                  min: 55    // 最小值
+                }
+              }
+            }
+          });
+        }
+      }
+    });
+  </script>
+</body>
+</html>
