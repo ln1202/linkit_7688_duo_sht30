@@ -12,3 +12,8 @@ from http://localhost to Your Website URL
 
 2. Open  Arduino Preferences--> Boards Manager URLs
    add your website url such as "http://localhost/package_mtk_linkit_smart_7688_index.json"
+
+
+##gauge.html
+1.modift FASTAPI_IP to your fastapi ip address
+2.change gauge.js url
